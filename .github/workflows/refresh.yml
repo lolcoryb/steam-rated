@@ -1,0 +1,53 @@
+name: Refresh Steam data
+
+on:
+  schedule:
+    # 11:00 UTC daily = 7am Eastern (6am during standard time).
+    - cron: "0 11 * * *"
+  workflow_dispatch:        # lets you run it by hand from the Actions tab
+  push:
+    branches: [main]
+    # Re-run when the crawler changes. Deliberately not scripts/** — this job
+    # commits scripts/details_cache.json, and matching it here would be a loop
+    # (pushes from GITHUB_TOKEN don't retrigger, but don't rely on that).
+    paths: ['scripts/fetch_steam.py']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check the parser still matches Steam's markup
+        run: python scripts/test_parser.py
+
+      - name: Crawl Steam
+        run: |
+          python scripts/fetch_steam.py \
+            --days 180 \
+            --min-reviews 10 \
+            --verify-budget 400
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name  "steam-rated-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data.json scripts/details_cache.json
+          if git diff --staged --quiet; then
+            echo "No change."
+          else
+            git commit -m "Refresh Steam data ($(date -u +%Y-%m-%d))"
+            git push
+          fi
