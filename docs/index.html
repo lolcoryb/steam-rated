@@ -328,12 +328,28 @@ function compact(n){
   var k = n/1000;
   return (k >= 10 ? Math.round(k) : Math.round(k*10)/10) + "k";
 }
-function shot(appid){
-  return "https://cdn.cloudflare.steamstatic.com/steam/apps/"+appid+"/header.jpg";
+// Steam's store art lives at hashed paths that can't be derived from the appid,
+// so the crawler captures the real capsule URL per game. header.jpg sits in the
+// same folder and matches the card's aspect ratio, so try that first and fall
+// back to the capsule we know is valid. Older rows with no captured URL still
+// resolve on the legacy flat path.
+function imgUrls(g){
+  var out = [];
+  if(g.img){
+    var header = g.img.replace(/capsule_\d+x\d+\.jpg$/, "header.jpg");
+    if(header !== g.img) out.push(header);
+    out.push(g.img);
+  }
+  out.push("https://cdn.cloudflare.steamstatic.com/steam/apps/"+g.appid+"/header.jpg");
+  return out;
 }
-function shotAlt(appid){
-  return "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/"+
-         appid+"/header.jpg";
+// Walks the remaining candidates on each load failure, then gives up and leaves
+// the panel colour showing rather than a broken-image icon.
+function stepImg(el){
+  var list = (el.getAttribute("data-alt")||"").split(" ").filter(Boolean);
+  if(!list.length){ el.style.display = "none"; return; }
+  el.setAttribute("data-alt", list.slice(1).join(" "));
+  el.src = list[0];
 }
 function daysAgo(iso){
   if(!iso) return null;
@@ -478,12 +494,10 @@ function render(){
   writeURL();
 }
 
-// Falls back to Steam's other CDN host, then gives up and leaves the panel
-// colour showing rather than a broken-image icon.
 function imgTag(g){
-  return '<img loading="lazy" decoding="async" alt="" src="'+shot(g.appid)+'" '+
-    'onerror="if(this.dataset.f){this.style.display=\'none\'}'+
-    'else{this.dataset.f=1;this.src=\''+shotAlt(g.appid)+'\'}">';
+  var srcs = imgUrls(g);
+  return '<img loading="lazy" decoding="async" alt="" src="'+esc(srcs[0])+'" '+
+         'data-alt="'+esc(srcs.slice(1).join(" "))+'" onerror="stepImg(this)">';
 }
 // Steam does show 100%-off promos, but "Free -50%" reads as a bug.
 function discountTag(g){
