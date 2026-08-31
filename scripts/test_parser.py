@@ -14,7 +14,7 @@ REAL_ROW = r'''
 <a href="https://store.steampowered.com/app/4020490/Smack_Talk/?snr=1_7_7_230_150_1"
  data-ds-appid="4020490" data-ds-itemkey="App_4020490" data-ds-tagids="[7178,4136,3859,1719,597,1743,10397]" data-ds-crtrids="[46271321]" class="search_result_row ds_collapse_flag "
  data-search-page="1" data-gpnav="item">
-<div class="search_capsule"><img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4020490/capsule_231x87.jpg"></div>
+<div class="search_capsule"><img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4020490/d3187185fa6d470b0c2f8d4af3e3d9df643223b3/capsule_231x87.jpg?t=1787837988" ></div>
 <div class="responsive_search_name_combined">
 <div class="search_name ellipsis"><span class="title">Smack Talk</span></div>
 <div class="search_released responsive_secondrow">Aug 27, 2026</div>
@@ -88,8 +88,12 @@ check(g["price_cents"] == 389, f"price -> {g['price_cents']}")
 check(len(g["tag_ids"]) == 7, f"tag ids -> {g['tag_ids']}")
 check(parse_date(g["released_text"]).isoformat() == "2026-08-27", "date 'Aug 27, 2026'")
 check(g["url"].endswith("/app/4020490/Smack_Talk/"), f"url -> {g['url']}")
+check(g["img"] == "https://shared.fastly.steamstatic.com/store_item_assets/steam/"
+      "apps/4020490/d3187185fa6d470b0c2f8d4af3e3d9df643223b3/capsule_231x87.jpg",
+      f"hashed capsule url captured, ?t= stripped -> {g['img']}")
 
 g = by_id.get(111111)
+check(g["img"] is None, "row with no capsule -> img None (client uses legacy path)")
 check(g["tier"] is None and g["reviews"] is None, "no review block -> unrated")
 check(g["price_cents"] == 0, "free -> 0 cents")
 check(parse_date(g["released_text"]).isoformat() == "2026-08-26", "date '26 Aug, 2026'")
