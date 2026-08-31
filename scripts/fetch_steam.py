@@ -108,6 +108,12 @@ TITLE_RE = re.compile(r'<span class="title">(.*?)</span>', re.S)
 RELEASED_RE = re.compile(r'<div class="search_released[^"]*">\s*(.*?)\s*</div>', re.S)
 TOOLTIP_RE = re.compile(r'data-tooltip-html="(.*?)"', re.S)
 TAGIDS_RE = re.compile(r'data-ds-tagids="\[([\d,\s]*)\]"')
+# Steam serves store art from hashed paths now, e.g.
+#   .../store_item_assets/steam/apps/4020490/d3187185fa.../capsule_231x87.jpg
+# The hash is not derivable from the appid, and the old flat
+# /steam/apps/<appid>/header.jpg path only still resolves for older games — so
+# take the URL Steam itself put in the row rather than constructing one.
+CAPSULE_RE = re.compile(r'<div class="search_capsule"><img[^>]*?src="([^"]+)"')
 PRICE_FINAL_RE = re.compile(r'data-price-final="(\d+)"')
 DISCOUNT_RE = re.compile(r'<div class="col search_discount[^"]*">\s*<span>-(\d+)%</span>', re.S)
 
@@ -176,9 +182,15 @@ def parse_rows(results_html):
         if d:
             discount = int(d.group(1))
 
+        # Strip the ?t= cache-buster; it changes on every store update and would
+        # churn the committed data.json for no visual difference.
+        cap_m = CAPSULE_RE.search(blob)
+        capsule = html.unescape(cap_m.group(1)).split("?")[0] if cap_m else None
+
         yield {
             "appid": int(appid_m.group(1)),
             "title": title,
+            "img": capsule,
             "released_text": released_text,
             "released": None,
             "tier": tier,
